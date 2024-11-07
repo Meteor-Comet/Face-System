@@ -45,6 +45,7 @@ class Teacher(db.Model):
 class Faces(db.Model):
     __tablename__ = 'student_faces'
     s_id = db.Column(db.String(13), primary_key=True)
+    #s_name = db.Column(db.String(80), nullable=False)
     feature = db.Column(db.Text,nullable=False)
 
     def __repr__(self):

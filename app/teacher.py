@@ -103,12 +103,12 @@ class VideoCamera(object):
 
     def get_face_database(self, cid, db_session):
         print(cid)
-        course_sid = db_session.query(SC).filter(SC.c_id==cid).all()
+        course_sid = db_session.query(SC).filter(SC.c_id == cid).all()
         all_sid = []
         for sc in course_sid:
             all_sid.append(sc.s_id)
         from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
-        #from_db_all_features = Faces.query.all()
+        # from_db_all_features = Faces.query.all()
         if from_db_all_features:
             for from_db_one_features in from_db_all_features:
                 someone_feature_str = str(from_db_one_features.feature).split(',')
@@ -147,7 +147,7 @@ class VideoCamera(object):
     # 生成的 cv2 window 上面添加说明文字 / putText on cv2 window
     def draw_note(self, img_rd):
         # 添加说明 (Add some statements
-        cv2.putText(img_rd, "One person at a time:  ", (20, 40), self.font, 1, (255, 255, 255), 1,
+        cv2.putText(img_rd, "Single Only!", (20, 40), self.font, 1, (255, 255, 255), 1,
                     cv2.LINE_AA)
         cv2.putText(img_rd, "FPS:   " + str(self.fps.__round__(2)), (20, 100), self.font, 0.8, (0, 255, 0), 1,
                     cv2.LINE_AA)
@@ -155,7 +155,6 @@ class VideoCamera(object):
 
     def draw_name(self, img_rd):
         # 在人脸框下面写人脸名字
-        # print(self.current_frame_name_list)
         font = ImageFont.truetype("simsun.ttc", 30)
         img = Image.fromarray(cv2.cvtColor(img_rd, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(img)
@@ -246,9 +245,12 @@ class VideoCamera(object):
                                         # print("            >>> recognition result for face " + str(k + 1) + ": " +
                                         #       self.name_known_list[similar_person_num])
                                         now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+                                        student_id = self.name_known_list[similar_person_num]
+                                        student = Student.query.filter_by(s_id=student_id).first()
                                         mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
-                                        file.write(
-                                            self.name_known_list[similar_person_num] + '  ' + now + '     已签到\n')
+                                        #mm = f"{student_id} {student.s_name} {now} 已签到\n"
+                                        file.write(f"{student_id} {student.s_name} {now} 已签到\n")
+                                        # file.write(self.name_known_list[similar_person_num] + '  ' + now + '     已签到\n')
                                         attend_records.append(mm)
                                         # session['attend'].append(mm)
                                     else:
@@ -334,8 +336,12 @@ class VideoCamera(object):
                                     # print("            >>> recognition result for face " + str(k + 1) + ": " +
                                     #     self.name_known_list[similar_person_num])
                                     now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+                                    student_id = self.name_known_list[similar_person_num]
+                                    student = Student.query.filter_by(s_id=student_id).first()
                                     mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
-                                    file.write(self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n')
+                                    #mm = f"{student_id} {student.s_name} {now} 已签到\n"
+                                    file.write(f"{student_id} {student.s_name} {now} 已签到\n")
+                                    # file.write(self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n')
                                     # session['attend'].append(mm)
                                     attend_records.append(mm)
                                 else:
@@ -365,6 +371,15 @@ class VideoCamera(object):
                 ret, jpeg = cv2.imencode('.jpg', img_rd)
                 return jpeg.tobytes()
 
+    def show_chinese_name(self):
+        for k in range(len(self.current_frame_name_list)):
+            sid = self.current_frame_name_list[k]
+            student = Student.query.filter(Student.s_id == sid).first()
+            if student:
+                self.current_frame_name_list[k] = student.s_name
+            else:
+                self.current_frame_name_list[k] = "unknown"
+
 
 # 老师端
 @teacher.route('/reco_faces')
@@ -378,15 +393,14 @@ def gen(camera, cid, db_session):
             frame = camera.get_frame(cid, db_session)
             # 使用generator函数输出视频流， 每次请求输出的content类型是image/jpeg
             print(frame)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+            yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
 
 # 人脸识别view函数（视图函数）
 @teacher.route('/video_feed')
 def video_feed():
-    with app.app_context():        return Response(gen(VideoCamera(), session['course'],db.session),
-                        mimetype='multipart/x-mixed-replace; boundary=frame')
+    with app.app_context():        return Response(gen(VideoCamera(), session['course'], db.session),
+                                                   mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @teacher.route('/all_course')
@@ -428,6 +442,7 @@ def records():
 # 实时显示当前签到人员
 @teacher.route('/now_attend')
 def now_attend():
+
     return jsonify(attend_records)
 
 
@@ -719,6 +734,7 @@ def delete_face():
     # 跳转到学生列表页面
     return redirect(url_for('teacher.select_sc'))
 
+
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = set(['xlsx', 'xls'])
     return '.' in filename and \
@@ -904,30 +920,79 @@ def upload_student():
     return redirect(url_for('teacher.select_all_student'))
 
 
+
 @teacher.route('/download', methods=['POST'])
 def download():
-    # url = str(request.url)
-    # paras = url.split('?')[1]
-    # print(paras)
-    # nums = paras.split('&')
-    # print(nums)
-    # cid = nums[0].split('=')[1]
-    # cname = nums[1].split('=')[1]
-    # time = nums[2].split('=')[1]
-    cid = request.form.get('cid')
-    cname = request.form.get('cname')
-    time = request.form.get('time')
-    # 建立数据库引擎
-    engine = create_engine('mysql+pymysql://root:root@localhost:3306/test?charset=utf8')
-    # 写一条sql
-    sql = "select s_id 学号,result 考勤结果 from attendance where c_id='" + str(cid) + "' and time='" + str(time) + "'"
-    print(sql)
-    # 建立dataframe
-    df = pd.read_sql_query(sql, engine)
-    out = BytesIO()
-    writer = pd.ExcelWriter('out.xlsx', engine='xlsxwriter')
-    df.to_excel(excel_writer=writer, sheet_name='Sheet1', index=False)
-    writer.save()
-    out.seek(0)
+    try:
+        # Retrieve form data
+        cid = request.form.get('cid')
+        cname = request.form.get('cname')
+        time = request.form.get('time')
 
-    return jsonify({"message": "保存成功，请前往项目目录下查看out.xlsx文件"})
+        # Create database engine
+        engine = create_engine('mysql+pymysql://root:123456@localhost:3306/test?charset=utf8')
+
+        # Build SQL query
+        sql = """
+            SELECT 
+                a.s_id AS '学号',
+                s.s_name AS '姓名', 
+                a.result AS '考勤结果'
+            FROM attendance a
+            JOIN students s ON a.s_id = s.s_id
+            WHERE a.c_id = %s AND a.time = %s
+        """
+
+        # Fetch data from database
+        df = pd.read_sql_query(sql, engine, params=(cid, time))
+
+        # Create Excel file in memory
+        excel_file = BytesIO()
+        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
+        excel_file.seek(0)
+
+        # Return the Excel file for download
+        return send_file(
+            excel_file,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=f"{cname}考勤记录_{time}.xlsx"
+        )
+
+    except Exception as e:
+        # Handle errors and provide a more informative response
+        return f"Error downloading file: {str(e)}", 500
+
+# @teacher.route('/download', methods=['POST'])
+# def download():
+#     # url = str(request.url)
+#     # paras = url.split('?')[1]
+#     # print(paras)
+#     # nums = paras.split('&')
+#     # print(nums)
+#     # cid = nums[0].split('=')[1]
+#     # cname = nums[1].split('=')[1]
+#     # time = nums[2].split('=')[1]
+#     cid = request.form.get('cid')
+#     cname = request.form.get('cname')
+#     time = request.form.get('time')
+#     # 建立数据库引擎
+#     engine = create_engine('mysql+pymysql://root:123456@localhost:3306/test?charset=utf8')
+#     # 写一条sql
+#     sql = "select s_id 学号,result 考勤结果 from attendance where c_id='" + str(cid) + "' and time='" + str(time) + "'"
+#     print(sql)
+#     # 建立dataframe
+#     df = pd.read_sql_query(sql, engine)
+#     out = BytesIO()
+#     writer = pd.ExcelWriter('out.xlsx', engine='xlsxwriter')
+#     df.to_excel(excel_writer=writer, sheet_name='Sheet1', index=False)
+#     out.seek(0)
+#
+#     return send_file(
+#         path_or_file=out,
+#         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+#         as_attachment=True,
+#         download_name=f"{cname}_{time}.xlsx"
+#     )
+#     #return jsonify({"message": "保存成功，请前往项目目录下查看out.xlsx文件"})
