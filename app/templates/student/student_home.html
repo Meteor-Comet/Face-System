@@ -136,6 +136,10 @@
         {% endif %}
         <a class="ibtn">暂无权限</a>
     </li>
+
+    <li><span>您可以在有课程进行签到时进行签到</span>
+        <a class="ibtn" href="{{ url_for('student.choose_attendance_course') }}">进入签到</a>
+    </li>
     </ul>
 
     <div class="xline" style="width: 100%;float: left"></div>

@@ -59,6 +59,8 @@ class Course(db.Model):
     c_name = db.Column(db.String(100),nullable=False)
     times = db.Column(db.Text,default="0000-00-00 00:00")
     flag = db.Column(db.String(50), default="不可选课")
+    attendance_status = db.Column(db.Boolean, default=False)  # 新增
+    attendance_course_id = db.Column(db.String(100))  # 唯一的签到标识
 
     def __repr__(self):
         return '<Course %r,%r,%r>' % (self.c_id,self.t_id,self.c_name)

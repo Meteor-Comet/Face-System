@@ -1,3 +1,5 @@
+import uuid
+
 from flask import Blueprint, render_template, redirect, request, Response, session, flash, jsonify, url_for
 
 from . import app
@@ -47,9 +49,11 @@ def home():
 detector = dlib.get_frontal_face_detector()
 # Dlib 人脸 landmark 特征点检测器
 predictor = dlib.shape_predictor('app/static/data_dlib/shape_predictor_68_face_landmarks.dat')
+# predictor = dlib.shape_predictor('static/data_dlib/shape_predictor_68_face_landmarks.dat')
 
 # Dlib Resnet 人脸识别模型，提取 128D 的特征矢量
 face_reco_model = dlib.face_recognition_model_v1("app/static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
+# face_reco_model = dlib.face_recognition_model_v1("static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
 
 
 # 人脸识别类
@@ -101,31 +105,76 @@ class VideoCamera(object):
 
         # 从 "features_all.csv" 读取录入人脸特征 / Get known faces from "features_all.csv"
 
+    # def get_face_database(self, cid, db_session):
+    #     # print(cid)
+    #     course_sid = db_session.query(SC).filter(SC.c_id == cid).all()
+    #     all_sid = []
+    #     for sc in course_sid:
+    #         all_sid.append(sc.s_id)
+    #     from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
+    #     # from_db_all_features = Faces.query.all()
+    #     if from_db_all_features:
+    #         for from_db_one_features in from_db_all_features:
+    #             someone_feature_str = str(from_db_one_features.feature).split(',')
+    #             self.name_known_list.append(from_db_one_features.s_id)
+    #             features_someone_arr = []
+    #             for one_feature in someone_feature_str:
+    #                 if one_feature == '':
+    #                     features_someone_arr.append('0')
+    #                 else:
+    #                     features_someone_arr.append(float(one_feature))
+    #             self.features_known_list.append(features_someone_arr)
+    #         # print("Faces in Database：", len(self.features_known_list))
+    #         return 1
+    #     else:
+    #         # print('##### Warning #####', '\n')
+    #         # print("'features' is empty")
+    #         # print('##### End Warning #####')
+    #         return 0
     def get_face_database(self, cid, db_session):
-        print(cid)
-        course_sid = db_session.query(SC).filter(SC.c_id == cid).all()
-        all_sid = []
-        for sc in course_sid:
-            all_sid.append(sc.s_id)
-        from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
-        # from_db_all_features = Faces.query.all()
-        if from_db_all_features:
-            for from_db_one_features in from_db_all_features:
-                someone_feature_str = str(from_db_one_features.feature).split(',')
-                self.name_known_list.append(from_db_one_features.s_id)
-                features_someone_arr = []
-                for one_feature in someone_feature_str:
-                    if one_feature == '':
-                        features_someone_arr.append('0')
-                    else:
-                        features_someone_arr.append(float(one_feature))
-                self.features_known_list.append(features_someone_arr)
-            # print("Faces in Database：", len(self.features_known_list))
-            return 1
-        else:
-            # print('##### Warning #####', '\n')
-            # print("'features' is empty")
-            # print('##### End Warning #####')
+        """
+        从数据库获取人脸特征并进行校验，只允许当前课程的学生通过
+        :param cid: 当前课程 ID
+        :param db_session: 数据库会话对象
+        :return: 1 表示成功获取人脸特征，0 表示获取失败
+        """
+        try:
+            # 每次加载前清空已知列表，避免重复加载
+            self.features_known_list = []
+            self.name_known_list = []
+
+            # 获取当前课程的所有学生 ID
+            course_students = db_session.query(SC.s_id).filter(SC.c_id == cid).all()
+            valid_students = [student_id for student_id, in course_students]  # 提取 s_id 列表
+
+            # 查询人脸特征，只获取属于当前课程学生的记录
+            from_db_all_features = Faces.query.filter(Faces.s_id.in_(valid_students)).all()
+
+            if from_db_all_features:
+                for from_db_one_features in from_db_all_features:
+                    # 从数据库中获取每个学生的人脸特征字符串
+                    someone_feature_str = str(from_db_one_features.feature).split(',')
+
+                    # 存储学生的 ID 和人脸特征
+                    self.name_known_list.append(from_db_one_features.s_id)
+                    features_someone_arr = []
+
+                    for one_feature in someone_feature_str:
+                        if one_feature == '':
+                            features_someone_arr.append('0')
+                        else:
+                            features_someone_arr.append(float(one_feature))
+
+                    self.features_known_list.append(features_someone_arr)
+
+                # print(f"成功加载课程 {cid} 的人脸特征：{len(self.features_known_list)} 个学生")
+                return 1  # 返回成功标志
+            else:
+                print(f"警告：课程 {cid} 无有效人脸特征数据")
+                return 0  # 无数据时返回 0
+
+        except Exception as e:
+            print(f"错误：加载课程 {cid} 的人脸特征失败，错误信息：{e}")
             return 0
 
         # 更新 FPS / Update FPS of video stream
@@ -147,7 +196,7 @@ class VideoCamera(object):
     # 生成的 cv2 window 上面添加说明文字 / putText on cv2 window
     def draw_note(self, img_rd):
         # 添加说明 (Add some statements
-        cv2.putText(img_rd, "Single Only!", (20, 40), self.font, 1, (255, 255, 255), 1,
+        cv2.putText(img_rd, "Single Only!", (20, 40), self.font, 1, (255, 0, 0), 1,
                     cv2.LINE_AA)
         cv2.putText(img_rd, "FPS:   " + str(self.fps.__round__(2)), (20, 100), self.font, 0.8, (0, 255, 0), 1,
                     cv2.LINE_AA)
@@ -175,7 +224,6 @@ class VideoCamera(object):
                 self.frame_cnt += 1
                 # print(">>> Frame " + str(self.frame_cnt) + " starts")
                 flag, img_rd = stream.read()
-
                 # 2. 检测人脸 / Detect faces for frame X
                 faces = detector(img_rd, 0)  # 人脸特征数组
 
@@ -247,8 +295,8 @@ class VideoCamera(object):
                                         now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
                                         student_id = self.name_known_list[similar_person_num]
                                         student = Student.query.filter_by(s_id=student_id).first()
-                                        mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
-                                        #mm = f"{student_id} {student.s_name} {now} 已签到\n"
+                                        #mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
+                                        mm = f"{student_id} {student.s_name} {now} 已签到\n"
                                         file.write(f"{student_id} {student.s_name} {now} 已签到\n")
                                         # file.write(self.name_known_list[similar_person_num] + '  ' + now + '     已签到\n')
                                         attend_records.append(mm)
@@ -338,8 +386,8 @@ class VideoCamera(object):
                                     now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
                                     student_id = self.name_known_list[similar_person_num]
                                     student = Student.query.filter_by(s_id=student_id).first()
-                                    mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
-                                    #mm = f"{student_id} {student.s_name} {now} 已签到\n"
+                                    #mm = self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n'
+                                    mm = f"{student_id} {student.s_name} {now} 已签到\n"
                                     file.write(f"{student_id} {student.s_name} {now} 已签到\n")
                                     # file.write(self.name_known_list[similar_person_num] + '  ' + now + '  已签到\n')
                                     # session['attend'].append(mm)
@@ -392,14 +440,15 @@ def gen(camera, cid, db_session):
         while True:
             frame = camera.get_frame(cid, db_session)
             # 使用generator函数输出视频流， 每次请求输出的content类型是image/jpeg
-            print(frame)
+            # print(frame)
             yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
 
 # 人脸识别view函数（视图函数）
 @teacher.route('/video_feed')
 def video_feed():
-    with app.app_context():        return Response(gen(VideoCamera(), session['course'], db.session),
+    with app.app_context():
+        return Response(gen(VideoCamera(), session['course'], db.session),
                                                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
@@ -410,40 +459,84 @@ def all_course():
 
 
 # 开启签到
+# @teacher.route('/records', methods=["POST"])
+# def records():
+#     # 开启签到后，开始单次的记录
+#     global attend_records
+#     attend_records = []
+#     now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+#     cid = request.form.get("id")
+#     print(cid)
+#     session['course'] = cid
+#     session['now_time'] = now
+#     # 添加课程考勤记录
+#     course = Course.query.filter(Course.c_id == cid).first()
+#     course.times = course.times + '/' + str(now)
+#     db.session.commit()
+#     the_course_students = SC.query.filter(SC.c_id == cid)
+#     student_ids = []
+#     for sc in the_course_students:
+#         student_ids.append(sc.s_id)
+#     # 考勤记录初始化，所有人未签到
+#     all_students_attend = []
+#     for i in range(len(student_ids)):
+#         someone_addtend = Attendance(s_id=student_ids[i], c_id=cid, time=now, result='缺勤')
+#         all_students_attend.append(someone_addtend)
+#     db.session.add_all(all_students_attend)
+#     db.session.commit()
+#     right_attend = Attendance.query.filter(Attendance.c_id == cid, Attendance.result == 1)
+#     return render_template("teacher/index.html")
+
 @teacher.route('/records', methods=["POST"])
 def records():
-    # 开启签到后，开始单次的记录
     global attend_records
     attend_records = []
     now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     cid = request.form.get("id")
     print(cid)
+    # 生成唯一的签到标识
+    attendance_course_id = str(uuid.uuid4())
     session['course'] = cid
     session['now_time'] = now
-    # 添加课程考勤记录
+    # 更新课程的签到状态
     course = Course.query.filter(Course.c_id == cid).first()
     course.times = course.times + '/' + str(now)
+    course.attendance_status = True  # 开启签到
+    course.attendance_course_id = attendance_course_id
     db.session.commit()
+
+    # 初始化所有学生的缺勤记录
     the_course_students = SC.query.filter(SC.c_id == cid)
-    student_ids = []
-    for sc in the_course_students:
-        student_ids.append(sc.s_id)
-    # 考勤记录初始化，所有人未签到
-    all_students_attend = []
-    for i in range(len(student_ids)):
-        someone_addtend = Attendance(s_id=student_ids[i], c_id=cid, time=now, result='缺勤')
-        all_students_attend.append(someone_addtend)
+    student_ids = [sc.s_id for sc in the_course_students]
+
+    all_students_attend = [
+        Attendance(s_id=sid, c_id=cid, time=now, result='缺勤')
+        for sid in student_ids
+    ]
     db.session.add_all(all_students_attend)
     db.session.commit()
-    right_attend = Attendance.query.filter(Attendance.c_id == cid, Attendance.result == 1)
-    return render_template("teacher/index.html")
+
+    # 将签到标识存入 session
+    session['attendance_course_id'] = attendance_course_id
+
+    return render_template("teacher/index.html", course_name=course.c_name)
 
 
 # 实时显示当前签到人员
 @teacher.route('/now_attend')
 def now_attend():
+    # 使用字典存储每个学号的最早签到记录
+    earliest_records = {}
+    for record in attend_records:
+        parts = record.split(' ')
+        sid = parts[0]
+        time = ' '.join(parts[2:4])
+        if sid not in earliest_records or time < earliest_records[sid].split(' ')[2]:
+            earliest_records[sid] = record
 
-    return jsonify(attend_records)
+    # 获取最新签到记录的列表
+    unique_attend_records = list(earliest_records.values())
+    return jsonify(unique_attend_records)
 
 
 # 停止签到
@@ -454,14 +547,17 @@ def stop_records():
     all_time = session['now_time']
     for someone_attend in attend_records:
         print(someone_attend)
-        sid = someone_attend.split('  ')[0]
-
+        sid = someone_attend.split(' ')[0]
         all_sid.append(sid)
     Attendance.query.filter(Attendance.time == all_time, Attendance.c_id == all_cid,
                             Attendance.s_id.in_(all_sid)).update({'result': '已签到'}, synchronize_session=False)
-    db.session.commit()
+    course = Course.query.filter(Course.c_id == all_cid).first()
+    if course:
+        course.attendance_status = False
+        course.attendance_course_id = None
+        db.session.commit()
+    #db.session.commit()
     return redirect(url_for('teacher.all_course'))
-
 
 @teacher.route('/select_all_records', methods=['GET', 'POST'])
 def select_all_records():

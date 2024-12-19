@@ -8,6 +8,8 @@ from app import db
 from datetime import datetime
 from sqlalchemy import extract
 
+from .teacher import gen, attend_records
+
 student = Blueprint('student', __name__, static_folder='static')
 
 
@@ -19,16 +21,30 @@ student = Blueprint('student', __name__, static_folder='static')
 #     1. 先查当前注册用户是否存在
 #     2.将注册用户插入表格
 #     return 1
-@student.route('/home')  # teacher/home
+
+@student.route('/home')  # 这是学生端的首页
 def home():
+    # 获取学生的签到课程信息
     records = {}
     student = Student.query.filter(Student.s_id == session['id']).first()
     session['flag'] = student.flag
     attendances = db.session.query(Attendance).filter(Attendance.s_id == session['id']).order_by(
         Attendance.time.desc()).limit(5).all()
+
+    # 查询最近签到的课程记录
     for i in attendances:
         course = db.session.query(Course).filter(Course.c_id == i.c_id).all()
         records[i] = course
+    # 判断当前是否有可签到的课程
+    attendance_course_id = None
+    student_courses = SC.query.filter(SC.s_id == session['id']).all()  # 获取学生选的所有课程
+    for sc in student_courses:
+        course = Course.query.filter(Course.c_id == sc.c_id).first()
+        if course and course.attendance_status:  # 判断课程是否开启签到
+            attendance_course_id = course.c_id
+            break
+
+    # 获取当前月份的签到统计数据
     year = datetime.now().year
     month = datetime.now().month
     qj = db.session.query(Attendance).filter(Attendance.s_id == session['id'],
@@ -48,8 +64,11 @@ def home():
                                               extract('year', Attendance.time) == year,
                                               Attendance.result == '已签到').count()
     num = {'qj': qj, 'cd': cd, 'qq': qq, 'yqd': yqd}
-    return render_template('student/student_home.html', flag=session['flag'], before=session['time'], records=records,
-                           name=session['name'], num=num)
+
+    # 渲染页面时传递 `attendance_course_id` 给模板
+    return render_template('student/student_home.html',
+                           flag=session['flag'], before=session['time'], records=records,
+                           name=session['name'], num=num, attendance_course_id=attendance_course_id)
 
 
 # def pre_work_mkdir(path_photos_from_camera):
@@ -280,3 +299,52 @@ def update_password():
         else:
             flash('旧密码错误，请重试')
     return render_template('student/update_password.html', student=student)
+
+
+
+@student.route('/choose_attendance_course', methods=['GET'])
+def choose_attendance_course():
+    student_courses = SC.query.filter(SC.s_id == session['id']).all()
+    courses = []
+    for sc in student_courses:
+        course = Course.query.filter(Course.c_id == sc.c_id).first()
+        if course:
+            courses.append(course)
+    return render_template('student/choose_attendance_course.html', courses=courses)
+
+
+# 处理课程签到的路由
+@student.route('/choose_attendance_course/<course_id>', methods=['GET'])
+def start_attendance(course_id):
+    course = Course.query.filter(
+        Course.c_id == course_id,
+        Course.attendance_status == True  # 签到状态为 True
+    ).first()
+
+    if course:
+        # 存储当前课程的签到信息
+        session['attendance_course_id'] = course.c_id
+        return render_template("student/face_attendance.html", course_name=course.c_name)
+
+    flash('课程签到已结束')
+    return redirect(url_for('student.home'))
+
+
+from flask import Response
+
+@student.route('/now_attend', methods=['GET'])
+def now_attend():
+    course_id = session.get('attendance_course_id')  # 当前签到课程
+    course = Course.query.filter_by(c_id=course_id).first()
+    if course:
+        is_active = course.attendance_status  # 签到状态
+        return jsonify({"records": attend_records, "status": is_active})
+    print(attend_records)
+    return jsonify({"records": [], "status": False})
+@student.route('/video_feed')
+def video_feed():
+    from app.teacher import VideoCamera  # 引入教师端的 VideoCamera 类
+    return Response(
+        gen(VideoCamera(), session['attendance_course_id'], db.session),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )

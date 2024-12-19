@@ -22,9 +22,11 @@ detector = dlib.get_frontal_face_detector()
 
 # Dlib 人脸 landmark 特征点检测器 / Get face landmarks
 predictor = dlib.shape_predictor('app/static/data_dlib/shape_predictor_68_face_landmarks.dat')
+# predictor = dlib.shape_predictor('static/data_dlib/shape_predictor_68_face_landmarks.dat')
 
 # Dlib Resnet 人脸识别模型，提取 128D 的特征矢量 / Use Dlib resnet50 model to get 128D face descriptor
 face_reco_model = dlib.face_recognition_model_v1("app/static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
+# face_reco_model = dlib.face_recognition_model_v1("static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
 
 
 # 返回单张图像的 128D 特征 / Return 128D features for single image

@@ -26,7 +26,7 @@ def login():
             students = Student.query.filter(Student.s_id == username).first()
             if students:
                 if students.s_password == password:
-                    flash("登陆成功")
+                    flash("登录成功")
                     session['username'] = username
                     session['id'] = students.s_id
                     session['num'] = 0  # students.num
@@ -48,7 +48,7 @@ def login():
             teachers = Teacher.query.filter(Teacher.t_id == username).first()
             if teachers:
                 if teachers.t_password == password:
-                    flash("登陆成功")
+                    flash("登录成功")
                     session['username'] = username
                     session['id'] = teachers.t_id
                     session['name'] = teachers.t_name
@@ -101,7 +101,7 @@ def before():
                 return None
             else:
                 new_endpoint = session['role'] + '.' + 'home'
-                print(role)
+                # print(role)
                 flash('权限不足')
                 return redirect(url_for(new_endpoint))
         else:
