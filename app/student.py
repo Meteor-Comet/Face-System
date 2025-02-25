@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, render_template, request, session, flash, jsonify, redirect, url_for
 from app import get_faces_from_camera as gf
 import base64
@@ -331,20 +333,46 @@ def start_attendance(course_id):
 
 
 from flask import Response
+# @student.route('/now_attend', methods=['GET'])
+# def now_attend():
+#     course_id = session.get('attendance_course_id')  # 当前签到课程
+#     course = Course.query.filter_by(c_id=course_id).first()
+#     if course:
+#         is_active = course.attendance_status  # 签到状态
+#         print("后端输出记录:", attend_records)
+#         return jsonify({"records": attend_records, "status": is_active})
+#     return jsonify({"records": [], "status": False})
 
 @student.route('/now_attend', methods=['GET'])
 def now_attend():
+    student_id = request.args.get('student_id')  # 接收学生 ID
     course_id = session.get('attendance_course_id')  # 当前签到课程
     course = Course.query.filter_by(c_id=course_id).first()
+
     if course:
         is_active = course.attendance_status  # 签到状态
+        if student_id != session.get('id'):  # 验证学生 ID 是否匹配
+            return jsonify({"records": [], "status": False, "message": "非法访问"})
         return jsonify({"records": attend_records, "status": is_active})
-    print(attend_records)
     return jsonify({"records": [], "status": False})
+
+# @student.route('/video_feed')
+# def video_feed():
+#     from app.teacher import VideoCamera  # 引入教师端的 VideoCamera 类
+#     return Response(
+#         gen(VideoCamera(), session['attendance_course_id'], db.session),
+#         mimetype='multipart/x-mixed-replace; boundary=frame'
+#     )
+
 @student.route('/video_feed')
 def video_feed():
-    from app.teacher import VideoCamera  # 引入教师端的 VideoCamera 类
+    from app.teacher import VideoCamera
+    student_id = session.get('id')  # 从 session 获取当前登录学生 ID
+    if not student_id:
+        return jsonify({"status": "error", "message": "未登录"})
+
     return Response(
-        gen(VideoCamera(), session['attendance_course_id'], db.session),
+        gen(VideoCamera(), student_id, db.session),
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )
+

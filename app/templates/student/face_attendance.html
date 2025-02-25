@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ course_name }} - 人脸签到</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>
+    <link rel="stylesheet" href="../../static/css/my.css">
+    <style>
+        .div-a{ float:left;width:50%;border:1px solid white;text-align: center}
+        .div-c{ float: left;width: 10%; border: 1px solid white}
+        .div-b{ float:left;width:30%;border:1px solid white}
+    </style>
+</head>
+<body>
+<header class="col-xs-12 navbar navbar-default" style="background: linear-gradient(to right, #cce2ff, #bef0ff);">
+    <div class="navbar-header">
+        <a class="navbar-brand" href="#">课程考勤</a>
+    </div>
+    <div class="rr">
+        <ul class="nav navbar-nav">
+            <li><a href="{{ url_for('student.home') }}">返回首页</a></li>
+        </ul>
+    </div>
+</header>
+
+<div class="div-a">
+    <input type="image" src="{{ url_for('student.video_feed') }}" id="video" name="face">
+</div>
+<div class="div-c"></div>
+<div class="div-b">
+    <table>
+        <h2>签到结果：</h2>
+        <br><br>
+        <h4 id="result"></h4>
+        <br><br>
+    </table>
+</div>
+
+<script>
+    $("#canvas").width($("#video").width());
+    $("#canvas").height($("#video").height());
+
+    // 获取视频流并进行捕捉
+    function getPic(){
+        video = document.getElementById("video");
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, video.width, video.height);
+    }
+
+    window.onload = function () {
+        getApi();
+    };
+
+{#function getApi() {#}
+{#    setTimeout(getApi, 1000);  // 每秒轮询一次#}
+{#    $.get("/student/now_attend", function (res) {#}
+{#        if (res.status === false) {#}
+{#            alert("签到已结束");#}
+{#            window.location.href = "/student/home";  // 跳转到学生首页#}
+{#        } else {#}
+{#            var records = res.records;#}
+{#            if (records.length > 0) {#}
+{#                var latestRecord = records[records.length - 1];  // 获取最新签到记录#}
+{#                $("#result").text(latestRecord);#}
+{#            } else {#}
+{#                $("#result").text(records.length+"暂无签到记录");#}
+{#            }#}
+{#        }#}
+{#    }).fail(function () {#}
+{#        console.error("获取签到数据失败");#}
+{#        $("#result").text("签到数据加载失败");#}
+{#    });#}
+{#/}#}
+
+
+function getApi() {
+    setTimeout(getApi, 1000);  // 每秒轮询一次
+    const studentId = "{{ session['id'] }}";  // 获取学生 ID
+
+    $.get(`/student/now_attend?student_id=${studentId}`, function (res) {
+        if (res.status === false) {
+            alert("签到已结束");
+            window.location.href = "/student/home";  // 跳转到学生首页
+        } else {
+            var records = res.records;
+            if (records.length > 0 && studentId === res.student_id) {
+                var latestRecord = records[records.length - 1];  // 获取最新签到记录
+                $("#result").text(latestRecord);
+            } else {
+                $("#result").text("人脸不合法");
+            }
+        }
+    }).fail(function () {
+        console.error("获取签到数据失败");
+        $("#result").text("签到数据加载失败");
+    });
+}
+
+
+
+</script>
+</body>
+</html>
