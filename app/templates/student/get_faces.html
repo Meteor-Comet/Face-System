@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>刷脸签到系统</title>
-    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+{#    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>#}
+{#    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">#}
+{#    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>#}
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">
     <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>
     <style>
@@ -101,20 +104,20 @@
                 var data = res;
                 flag = data.result;
                 num = data.code;
-                if(flag == 'none') {
+                if(flag === 'none') {
                     msg = '未检测到人脸，请重新拍摄';
                     $("#message").attr("class", 'alert-danger');
                 }
-                else if(flag == 'big') {
+                else if(flag === 'big') {
                     msg = '人脸范围过大，请调整距离后再拍摄';
                     $("#message").attr("class", 'alert-danger');
                 }
-                else if(flag == 'error'){
+                else if(flag === 'error'){
                     msg = '提交不合格照片，请确保5张照片都合格后再提交';
                     $("#message").attr("class", 'alert-danger');
                 }
                 else {
-                    if(num==5) {
+                    if(num===5) {
                         $("#message").attr("class", 'alert-warning');
                         msg = '已成功拍摄5张照片，再次拍摄将覆盖最旧的照片，无误请点击提交';
                     }
