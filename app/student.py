@@ -166,7 +166,6 @@ def upload_faces():
         # up.process(current_face_path)
         # msg = 'success'
         # return render_template('student/student_home.html', msg = msg)
-        msg = 'success'
         student = Student.query.filter(Student.s_id == session['id']).first()
         student.flag = 0
         db.session.commit()

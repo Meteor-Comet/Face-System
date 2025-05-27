@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ course_name }} - 人脸签到</title>
+{#    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">#}
+{#    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.js"></script>#}
+{#    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>#}
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>
+
     <link rel="stylesheet" href="../../static/css/my.css">
     <style>
         .div-a{ float:left;width:50%;border:1px solid white;text-align: center}
@@ -87,9 +91,15 @@ function getApi() {
             window.location.href = "/student/home";  // 跳转到学生首页
         } else {
             var records = res.records;
-            if (records.length > 0 && studentId === res.student_id) {
+            console.log(res);
+            if (records.length > 0 && records) {
                 var latestRecord = records[records.length - 1];  // 获取最新签到记录
-                $("#result").text(latestRecord);
+                var recordStudentId = latestRecord.split(' ')[0];
+                if (recordStudentId !== studentId) {
+                    $("#result").text("签到信息异常：ID不匹配");
+                }
+                else
+                $("#result").text(studentId+"已签到");
             } else {
                 $("#result").text("人脸不合法");
             }

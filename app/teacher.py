@@ -727,6 +727,8 @@ def all_course():
 
 @teacher.route('/records', methods=["POST"])
 def records():
+    # global attend_records  # 添加这一行
+    # attend_records = []    # 清空历史数据
     now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     cid = request.form.get("id")
     print(cid)
@@ -758,6 +760,7 @@ def records():
     return render_template("teacher/index.html", course_name=course.c_name)
 
 
+
 # 实时显示当前签到人员
 @teacher.route('/now_attend')
 def now_attend():
@@ -779,12 +782,10 @@ def now_attend():
 @teacher.route('/stop_records', methods=['POST'])
 def stop_records():
     global attend_records
-    attend_records = []
     all_sid = []
     all_cid = session['course']
     all_time = session['now_time']
     for someone_attend in attend_records:
-        print(someone_attend)
         sid = someone_attend.split(' ')[0]
         all_sid.append(sid)
     Attendance.query.filter(Attendance.time == all_time, Attendance.c_id == all_cid,
@@ -795,6 +796,7 @@ def stop_records():
         course.attendance_course_id = None
         db.session.commit()
     #db.session.commit()
+    attend_records = []
     return redirect(url_for('teacher.all_course'))
 
 @teacher.route('/select_all_records', methods=['GET', 'POST'])
@@ -1199,10 +1201,14 @@ def upload_teacher():
             pwd = df1[['密码']].values.T.tolist()[:][0]
             if df.isnull().values.any() or len(id) == 0:
                 flash('存在空信息')
+            #限制教师工号位数为8位
             else:
                 tid_diff = tid_if_exist(id)
                 if tid_diff != 0:
                     flash('工号存在重复')
+                #限制工号位数为8位
+                elif len(id[0]) != 8:
+                    flash('工号位数为8位')
                 else:
                     flash('success')
                     for i in range(len(id)):
@@ -1237,6 +1243,9 @@ def upload_student():
                 sid_diff = sid_if_exist(id)
                 if sid_diff != 0:
                     flash('学号存在重复')
+                #限制长度为13位
+                elif len(id[0]) != 13:
+                    flash('学号长度为13位')
                 else:
                     flash('success')
                     for i in range(len(id)):

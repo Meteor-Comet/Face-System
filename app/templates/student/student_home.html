@@ -6,8 +6,11 @@
 	<link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
 	<link href="../../static/css/style1.css" rel="stylesheet" />
     <script type="text/javascript" src="../../static/js/echarts.min.js"></script>
-    <script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>
-	<script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+{#    <script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>#}
+{#	<script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>#}
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/css/bootstrap.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.0.1/js/bootstrap.js"></script>
     <script type="text/javascript">
     /** 文档加载完成后立即执行的方法 */
     // var weeks = new Array();
@@ -133,8 +136,10 @@
     <li><span>您可以在有权限的情况下录入人脸图像</span>
         {% if flag %}
 			<a class="ibtn" href="{{ url_for('student.get_faces') }}">人脸录入</a>
+        {% else %}
+            <a class="ibtn">暂无权限</a>
         {% endif %}
-        <a class="ibtn">暂无权限</a>
+
     </li>
 
     <li><span>您可以在有课程进行签到时进行签到</span>
